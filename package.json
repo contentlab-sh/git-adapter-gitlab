@@ -1,0 +1,18 @@
+{
+  "name": "contentlab-git-adapter-gitlab",
+  "description": "Adapter that provides GitLab (SaaS) repository access to Contentlab",
+  "version": "0.2.0",
+  "license": "ISC",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@nestjs/axios": "^0.1.0",
+    "@nestjs/core": "^9.1.2",
+    "axios-cache-adapter": "^2.7.3",
+    "contentlab-git-adapter": "^0.2.0",
+    "yaml": "^2.1.1"
+  },
+  "devDependencies": {
+    "prettier": "^2.7.1",
+    "typescript": "^4.8.4"
+  }
+}
