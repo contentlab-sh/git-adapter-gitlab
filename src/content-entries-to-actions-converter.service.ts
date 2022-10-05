@@ -12,7 +12,7 @@ export class ContentEntriesToActionsConverterService {
   convert(
     contentEntries: ContentEntryDraft[],
     existingIdMap: Map<string, boolean>,
-    parentSha: string,
+    parentSha: string | undefined,
   ): ActionModel[] {
     const actions: ActionModel[] = []
     contentEntries.forEach((contentEntry) => {

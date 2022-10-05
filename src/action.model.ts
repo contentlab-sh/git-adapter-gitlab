@@ -3,6 +3,6 @@ export class ActionModel {
     readonly action: string,
     readonly content: string,
     readonly filePath: string,
-    readonly lastCommitId: string,
+    readonly lastCommitId: string | undefined,
   ) {}
 }

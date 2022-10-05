@@ -15,7 +15,6 @@ import { ActionModel } from './action.model'
 import { GitAdapter } from 'contentlab-git-adapter'
 import { map } from 'rxjs/operators'
 import { parse } from 'yaml'
-import { AxiosRequestConfig } from 'axios'
 import { ISetupCache, setupCache } from 'axios-cache-adapter'
 import { ContentEntry } from 'contentlab-git-adapter'
 import { GitLabRepositoryOptions } from './index'
@@ -26,7 +25,7 @@ export class GitLabAdapterService implements GitAdapter {
 
   private readonly axiosCache: ISetupCache
 
-  private gitRepositoryOptions: GitLabRepositoryOptions
+  private gitRepositoryOptions: GitLabRepositoryOptions | undefined
 
   constructor(
     private httpService: HttpService,
@@ -46,6 +45,10 @@ export class GitLabAdapterService implements GitAdapter {
   }
 
   public async getContentEntries(ref: string): Promise<ContentEntry[]> {
+    if (this.gitRepositoryOptions === undefined) {
+      throw new Error('Repository options must be set before reading')
+    }
+
     const projectPath = this.gitRepositoryOptions.projectPath
     const token = this.gitRepositoryOptions.token
 
@@ -69,7 +72,7 @@ export class GitLabAdapterService implements GitAdapter {
               response.data.data.project.repository.tree.blobs.nodes,
           ),
         )
-        .pipe(map((blobs) => blobs.map((blob) => blob.path))),
+        .pipe(map((blobs) => blobs.map((blob: any) => blob.path))),
     )
 
     const entryFilePaths = allFilePaths.filter((filename: string) =>
@@ -97,8 +100,8 @@ export class GitLabAdapterService implements GitAdapter {
 
     const extensionLength = ENTRY_EXTENSION.length
     return content
-      .map((edge) => edge.node)
-      .map((node) => {
+      .map((edge: any) => edge.node)
+      .map((node: any) => {
         const content = parse(node.rawBlob)
         const id = node.path.substring(
           ENTRY_FOLDER_NAME.length + 1, // trailing slash folder separator
@@ -109,6 +112,10 @@ export class GitLabAdapterService implements GitAdapter {
   }
 
   public async getSchema(ref: string): Promise<string> {
+    if (this.gitRepositoryOptions === undefined) {
+      throw new Error('Repository options must be set before reading')
+    }
+
     const projectPath = this.gitRepositoryOptions.projectPath
     const token = this.gitRepositoryOptions.token
     const schemaFilePath = `${SCHEMA_FOLDER_NAME}/${SCHEMA_FILENAME}`
@@ -142,6 +149,10 @@ export class GitLabAdapterService implements GitAdapter {
   }
 
   public async getLatestCommitSha(ref: string): Promise<string> {
+    if (this.gitRepositoryOptions === undefined) {
+      throw new Error('Repository options must be set before reading')
+    }
+
     const projectPath = this.gitRepositoryOptions.projectPath
     const token = this.gitRepositoryOptions.token
 
@@ -174,6 +185,10 @@ export class GitLabAdapterService implements GitAdapter {
   }
 
   public async createCommit(commitDraft: CommitDraft): Promise<Commit> {
+    if (this.gitRepositoryOptions === undefined) {
+      throw new Error('Repository options must be set before committing')
+    }
+
     const projectPath = this.gitRepositoryOptions.projectPath
     const token = this.gitRepositoryOptions.token
 
@@ -219,7 +234,8 @@ export class GitLabAdapterService implements GitAdapter {
     return new Commit(mutationResult.commit.sha)
   }
 
-  private getAxiosConfig(repositoryToken: string): AxiosRequestConfig {
+  // see https://github.com/nuxt-community/axios-module/issues/576 regarding return type
+  private getAxiosConfig(repositoryToken: string): any {
     return {
       adapter: this.axiosCache.adapter,
       headers: {
