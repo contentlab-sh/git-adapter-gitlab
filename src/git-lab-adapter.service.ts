@@ -1,5 +1,3 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { HttpService } from '@nestjs/axios'
 import { GraphqlQueryFactoryService } from './graphql-query-factory.service'
 import {
   CommitDraft,
@@ -8,35 +6,31 @@ import {
   SCHEMA_FILENAME,
   SCHEMA_FOLDER_NAME,
 } from 'contentlab-git-adapter'
-import { firstValueFrom } from 'rxjs'
 import { Commit } from 'contentlab-git-adapter'
 import { ContentEntriesToActionsConverterService } from './content-entries-to-actions-converter.service'
 import { ActionModel } from './action.model'
 import { GitAdapter } from 'contentlab-git-adapter'
-import { map } from 'rxjs/operators'
 import { parse } from 'yaml'
-import { ISetupCache, setupCache } from 'axios-cache-adapter'
+import { AxiosCacheInstance, setupCache } from 'axios-cache-interceptor'
 import { ContentEntry } from 'contentlab-git-adapter'
 import { GitLabRepositoryOptions } from './index'
+import { AxiosInstance } from 'axios'
 
-@Injectable()
 export class GitLabAdapterService implements GitAdapter {
   static readonly QUERY_CACHE_SECONDS = 10 * 60
 
-  private readonly axiosCache: ISetupCache
+  private readonly cachedHttpAdapter: AxiosCacheInstance
 
   private gitRepositoryOptions: GitLabRepositoryOptions | undefined
 
   constructor(
-    private httpService: HttpService,
+    private httpAdapter: AxiosInstance,
     private graphqlQueryFactory: GraphqlQueryFactoryService,
-    private contentEntryToActionConverterService: ContentEntriesToActionsConverterService,
+    private contentEntriesToActionsConverter: ContentEntriesToActionsConverterService,
   ) {
-    this.axiosCache = setupCache({
-      maxAge: GitLabAdapterService.QUERY_CACHE_SECONDS * 1000, // milliseconds
-      exclude: {
-        methods: [], // HTTP methods not to cache
-      },
+    this.cachedHttpAdapter = setupCache(httpAdapter, {
+      ttl: GitLabAdapterService.QUERY_CACHE_SECONDS * 1000, // milliseconds
+      methods: ['get', 'post'],
     })
   }
 
@@ -57,23 +51,21 @@ export class GitLabAdapterService implements GitAdapter {
       ref,
       ENTRY_FOLDER_NAME,
     )
-    const allFilePaths: string[] = await firstValueFrom(
-      this.httpService
-        .post(
-          'https://gitlab.com/api/graphql',
-          {
-            query: queryBlobs,
-          },
-          this.getAxiosConfig(token),
-        )
-        .pipe(
-          map(
-            (response) =>
-              response.data.data.project.repository.tree.blobs.nodes,
-          ),
-        )
-        .pipe(map((blobs) => blobs.map((blob: any) => blob.path))),
+    const filesResponse = await this.cachedHttpAdapter.post(
+      'https://gitlab.com/api/graphql',
+      {
+        query: queryBlobs,
+      },
+      {
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      },
     )
+    const allFilePaths: string[] =
+      filesResponse.data.data.project.repository.tree.blobs.nodes.map(
+        (blob: any) => blob.path,
+      )
 
     const entryFilePaths = allFilePaths.filter((filename: string) =>
       filename.endsWith(ENTRY_EXTENSION),
@@ -84,22 +76,21 @@ export class GitLabAdapterService implements GitAdapter {
       ref,
       entryFilePaths,
     )
-    const content = await firstValueFrom(
-      this.httpService
-        .post(
-          'https://gitlab.com/api/graphql',
-          {
-            query: queryContent,
-          },
-          this.getAxiosConfig(token),
-        )
-        .pipe(
-          map((response) => response.data.data.project.repository.blobs.edges),
-        ),
+    const contentResponse = await this.cachedHttpAdapter.post(
+      'https://gitlab.com/api/graphql',
+      {
+        query: queryContent,
+      },
+      {
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      },
     )
+    const edges = contentResponse.data.data.project.repository.blobs.edges
 
     const extensionLength = ENTRY_EXTENSION.length
-    return content
+    return edges
       .map((edge: any) => edge.node)
       .map((node: any) => {
         const content = parse(node.rawBlob)
@@ -125,27 +116,26 @@ export class GitLabAdapterService implements GitAdapter {
       ref,
       [schemaFilePath],
     )
-    const response = await firstValueFrom(
-      this.httpService
-        .post(
-          'https://gitlab.com/api/graphql',
-          {
-            query: queryContent,
-          },
-          this.getAxiosConfig(token),
-        )
-        .pipe(
-          map((response) => response.data.data.project.repository.blobs.edges),
-        ),
+    const response = await this.cachedHttpAdapter.post(
+      'https://gitlab.com/api/graphql',
+      {
+        query: queryContent,
+      },
+      {
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      },
     )
+    const edges = response.data.data.project.repository.blobs.edges
 
-    if (response.length === 0) {
-      throw new NotFoundException(
+    if (edges.length === 0) {
+      throw new Error(
         `"${schemaFilePath}" not found in Git repository "${projectPath}" in branch "${ref}"`,
       )
     }
 
-    return response[0].node.rawBlob
+    return edges[0].node.rawBlob
   }
 
   public async getLatestCommitSha(ref: string): Promise<string> {
@@ -161,24 +151,22 @@ export class GitLabAdapterService implements GitAdapter {
       ref,
     )
 
-    const response = await firstValueFrom(
-      this.httpService.post(
-        'https://gitlab.com/api/graphql',
-        {
-          query: queryLatestCommit,
+    // must not use cache adapter here, so we always get the branch's current head
+    const response = await this.httpAdapter.post(
+      'https://gitlab.com/api/graphql',
+      {
+        query: queryLatestCommit,
+      },
+      {
+        headers: {
+          authorization: `Bearer ${token}`,
         },
-        {
-          // must not use cache adapter here, so we always get the branch's current head
-          headers: {
-            authorization: `Bearer ${token}`,
-          },
-        },
-      ),
+      },
     )
 
     const lastCommit = response.data.data.project.repository.tree.lastCommit
     if (!lastCommit) {
-      throw new NotFoundException(`No commit found for branch "${ref}"`)
+      throw new Error(`No commit found for branch "${ref}"`)
     }
 
     return lastCommit.sha
@@ -198,31 +186,29 @@ export class GitLabAdapterService implements GitAdapter {
     existingContentEntries.forEach((entry) => existingIdMap.set(entry.id, true))
 
     const actions: ActionModel[] =
-      this.contentEntryToActionConverterService.convert(
+      this.contentEntriesToActionsConverter.convert(
         commitDraft.contentEntries,
         existingIdMap,
         commitDraft.parentSha,
       )
 
     const mutateCommit = this.graphqlQueryFactory.createCommitMutation()
-    const response: any = await firstValueFrom(
-      this.httpService.post(
-        'https://gitlab.com/api/graphql',
-        {
-          query: mutateCommit,
-          variables: {
-            actions,
-            branch: commitDraft.ref, // if `ref` is a hash and not a branch, commits are rejected by GitLab
-            message: commitDraft.message ?? '-',
-            projectPath: projectPath,
-          },
+    const response: any = await this.httpAdapter.post(
+      'https://gitlab.com/api/graphql',
+      {
+        query: mutateCommit,
+        variables: {
+          actions,
+          branch: commitDraft.ref, // if `ref` is a hash and not a branch, commits are rejected by GitLab
+          message: commitDraft.message ?? '-',
+          projectPath: projectPath,
         },
-        {
-          headers: {
-            authorization: `Bearer ${token}`,
-          },
+      },
+      {
+        headers: {
+          authorization: `Bearer ${token}`,
         },
-      ),
+      },
     )
 
     const mutationResult = response.data.data.commitCreate
@@ -232,15 +218,5 @@ export class GitLabAdapterService implements GitAdapter {
     }
 
     return new Commit(mutationResult.commit.sha)
-  }
-
-  // see https://github.com/nuxt-community/axios-module/issues/576 regarding return type
-  private getAxiosConfig(repositoryToken: string): any {
-    return {
-      adapter: this.axiosCache.adapter,
-      headers: {
-        authorization: `Bearer ${repositoryToken}`,
-      },
-    }
   }
 }

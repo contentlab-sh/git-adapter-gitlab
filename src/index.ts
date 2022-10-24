@@ -1,9 +1,13 @@
-import { GitRepositoryOptions } from 'contentlab-git-adapter'
+import { GitAdapter, GitRepositoryOptions } from 'contentlab-git-adapter'
+import { app } from './container'
 
-export { GitLabAdapterModule } from './git-lab-adapter.module'
 export { GitLabAdapterService } from './git-lab-adapter.service'
 
 export interface GitLabRepositoryOptions extends GitRepositoryOptions {
   projectPath: string
   token: string
+}
+
+export function createAdapter(): GitAdapter {
+  return app.adapter
 }
