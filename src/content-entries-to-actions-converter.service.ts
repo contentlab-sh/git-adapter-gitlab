@@ -4,10 +4,8 @@ import {
   ENTRY_EXTENSION,
   ENTRY_FOLDER_NAME,
 } from 'contentlab-git-adapter'
-import { Injectable } from '@nestjs/common'
 import { stringify } from 'yaml'
 
-@Injectable()
 export class ContentEntriesToActionsConverterService {
   convert(
     contentEntries: ContentEntryDraft[],

@@ -1,6 +1,3 @@
-import { Injectable } from '@nestjs/common'
-
-@Injectable()
 export class GraphqlQueryFactoryService {
   public createBlobQuery(project: string, ref: string, path: string): string {
     return `
