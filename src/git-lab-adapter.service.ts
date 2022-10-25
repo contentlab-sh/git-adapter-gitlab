@@ -34,11 +34,13 @@ export class GitLabAdapterService implements GitAdapter {
     })
   }
 
-  public setRepositoryOptions(repositoryOptions: GitLabRepositoryOptions) {
+  public async setRepositoryOptions(
+    repositoryOptions: GitLabRepositoryOptions,
+  ): Promise<void> {
     this.gitRepositoryOptions = repositoryOptions
   }
 
-  public async getContentEntries(ref: string): Promise<ContentEntry[]> {
+  public async getContentEntries(commitHash: string): Promise<ContentEntry[]> {
     if (this.gitRepositoryOptions === undefined) {
       throw new Error('Repository options must be set before reading')
     }
@@ -48,7 +50,7 @@ export class GitLabAdapterService implements GitAdapter {
 
     const queryBlobs = this.graphqlQueryFactory.createBlobQuery(
       projectPath,
-      ref,
+      commitHash,
       ENTRY_FOLDER_NAME,
     )
     const filesResponse = await this.cachedHttpAdapter.post(
@@ -73,7 +75,7 @@ export class GitLabAdapterService implements GitAdapter {
 
     const queryContent = this.graphqlQueryFactory.createBlobContentQuery(
       projectPath,
-      ref,
+      commitHash,
       entryFilePaths,
     )
     const contentResponse = await this.cachedHttpAdapter.post(
@@ -102,7 +104,7 @@ export class GitLabAdapterService implements GitAdapter {
       })
   }
 
-  public async getSchema(ref: string): Promise<string> {
+  public async getSchema(commitHash: string): Promise<string> {
     if (this.gitRepositoryOptions === undefined) {
       throw new Error('Repository options must be set before reading')
     }
@@ -113,7 +115,7 @@ export class GitLabAdapterService implements GitAdapter {
 
     const queryContent = this.graphqlQueryFactory.createBlobContentQuery(
       projectPath,
-      ref,
+      commitHash,
       [schemaFilePath],
     )
     const response = await this.cachedHttpAdapter.post(
@@ -131,14 +133,14 @@ export class GitLabAdapterService implements GitAdapter {
 
     if (edges.length === 0) {
       throw new Error(
-        `"${schemaFilePath}" not found in Git repository "${projectPath}" in branch "${ref}"`,
+        `"${schemaFilePath}" not found in Git repository "${projectPath}" at commit "${commitHash}"`,
       )
     }
 
     return edges[0].node.rawBlob
   }
 
-  public async getLatestCommitSha(ref: string): Promise<string> {
+  public async getLatestCommitHash(ref: string): Promise<string> {
     if (this.gitRepositoryOptions === undefined) {
       throw new Error('Repository options must be set before reading')
     }
