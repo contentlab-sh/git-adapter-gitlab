@@ -1,7 +1,7 @@
 {
   "name": "contentlab-git-adapter-gitlab",
   "description": "Adapter that provides GitLab (SaaS) repository access to Contentlab",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "ISC",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
