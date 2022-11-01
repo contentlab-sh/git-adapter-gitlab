@@ -1,18 +1,18 @@
 import { GraphqlQueryFactoryService } from './graphql-query-factory.service'
 import {
+  Commit,
   CommitDraft,
+  ContentEntry,
   ENTRY_EXTENSION,
   ENTRY_FOLDER_NAME,
+  GitAdapter,
   SCHEMA_FILENAME,
   SCHEMA_FOLDER_NAME,
-} from 'contentlab-git-adapter'
-import { Commit } from 'contentlab-git-adapter'
+} from '@contentlab/git-adapter'
 import { ContentEntriesToActionsConverterService } from './content-entries-to-actions-converter.service'
 import { ActionModel } from './action.model'
-import { GitAdapter } from 'contentlab-git-adapter'
 import { parse } from 'yaml'
 import { AxiosCacheInstance, setupCache } from 'axios-cache-interceptor'
-import { ContentEntry } from 'contentlab-git-adapter'
 import { GitLabRepositoryOptions } from './index'
 import { AxiosInstance } from 'axios'
 

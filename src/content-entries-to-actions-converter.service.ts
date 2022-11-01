@@ -3,7 +3,7 @@ import {
   ContentEntryDraft,
   ENTRY_EXTENSION,
   ENTRY_FOLDER_NAME,
-} from 'contentlab-git-adapter'
+} from '@contentlab/git-adapter'
 import { stringify } from 'yaml'
 
 export class ContentEntriesToActionsConverterService {
