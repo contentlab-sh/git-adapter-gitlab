@@ -4,10 +4,9 @@ import {
   CommitDraft,
   ContentEntry,
   ENTRY_EXTENSION,
-  ENTRY_FOLDER_NAME,
+  PATH_SCHEMA_FILE,
+  PATH_ENTRY_FOLDER,
   GitAdapter,
-  SCHEMA_FILENAME,
-  SCHEMA_FOLDER_NAME,
 } from '@contentlab/git-adapter'
 import { ContentEntriesToActionsConverterService } from './content-entries-to-actions-converter.service'
 import { ActionModel } from './action.model'
@@ -15,6 +14,7 @@ import { parse } from 'yaml'
 import { AxiosCacheInstance, setupCache } from 'axios-cache-interceptor'
 import { GitLabRepositoryOptions } from './index'
 import { AxiosInstance } from 'axios'
+import * as path from 'path'
 
 export class GitLabAdapterService implements GitAdapter {
   static readonly QUERY_CACHE_SECONDS = 10 * 60
@@ -47,11 +47,12 @@ export class GitLabAdapterService implements GitAdapter {
 
     const projectPath = this.gitRepositoryOptions.projectPath
     const token = this.gitRepositoryOptions.token
+    let pathEntryFolder = this.getPathEntryFolder(this.gitRepositoryOptions)
 
     const queryBlobs = this.graphqlQueryFactory.createBlobQuery(
       projectPath,
       commitHash,
-      ENTRY_FOLDER_NAME,
+      pathEntryFolder,
     )
     const filesResponse = await this.cachedHttpAdapter.post(
       'https://gitlab.com/api/graphql',
@@ -91,15 +92,11 @@ export class GitLabAdapterService implements GitAdapter {
     )
     const edges = contentResponse.data.data.project.repository.blobs.edges
 
-    const extensionLength = ENTRY_EXTENSION.length
     return edges
       .map((edge: any) => edge.node)
       .map((node: any) => {
         const content = parse(node.rawBlob)
-        const id = node.path.substring(
-          ENTRY_FOLDER_NAME.length + 1, // trailing slash folder separator
-          node.path.length - extensionLength,
-        )
+        const id = path.parse(node.path).name
         return new ContentEntry(id, content.metadata, content.data)
       })
   }
@@ -111,7 +108,8 @@ export class GitLabAdapterService implements GitAdapter {
 
     const projectPath = this.gitRepositoryOptions.projectPath
     const token = this.gitRepositoryOptions.token
-    const schemaFilePath = `${SCHEMA_FOLDER_NAME}/${SCHEMA_FILENAME}`
+    const schemaFilePath =
+      this.gitRepositoryOptions.pathSchemaFile ?? PATH_SCHEMA_FILE
 
     const queryContent = this.graphqlQueryFactory.createBlobContentQuery(
       projectPath,
@@ -181,6 +179,7 @@ export class GitLabAdapterService implements GitAdapter {
 
     const projectPath = this.gitRepositoryOptions.projectPath
     const token = this.gitRepositoryOptions.token
+    let pathEntryFolder = this.getPathEntryFolder(this.gitRepositoryOptions)
 
     // assumes branch/ref already exists
     const existingContentEntries = await this.getContentEntries(commitDraft.ref)
@@ -192,6 +191,7 @@ export class GitLabAdapterService implements GitAdapter {
         commitDraft.contentEntries,
         existingIdMap,
         commitDraft.parentSha,
+        pathEntryFolder,
       )
 
     const mutateCommit = this.graphqlQueryFactory.createCommitMutation()
@@ -220,5 +220,18 @@ export class GitLabAdapterService implements GitAdapter {
     }
 
     return new Commit(mutationResult.commit.sha)
+  }
+
+  private getPathEntryFolder(
+    gitRepositoryOptions: GitLabRepositoryOptions,
+  ): string {
+    const pathEntryFolder =
+      gitRepositoryOptions.pathEntryFolder ?? PATH_ENTRY_FOLDER
+
+    if (pathEntryFolder.endsWith('/')) {
+      return pathEntryFolder.substring(0, pathEntryFolder.length - 1)
+    }
+
+    return pathEntryFolder
   }
 }

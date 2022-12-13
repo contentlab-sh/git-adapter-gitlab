@@ -1,9 +1,5 @@
 import { ActionModel } from './action.model'
-import {
-  ContentEntryDraft,
-  ENTRY_EXTENSION,
-  ENTRY_FOLDER_NAME,
-} from '@contentlab/git-adapter'
+import { ContentEntryDraft, ENTRY_EXTENSION } from '@contentlab/git-adapter'
 import { stringify } from 'yaml'
 
 export class ContentEntriesToActionsConverterService {
@@ -11,6 +7,7 @@ export class ContentEntriesToActionsConverterService {
     contentEntries: ContentEntryDraft[],
     existingIdMap: Map<string, boolean>,
     parentSha: string | undefined,
+    pathEntryFolder: string,
   ): ActionModel[] {
     const actions: ActionModel[] = []
     contentEntries.forEach((contentEntry) => {
@@ -29,7 +26,7 @@ export class ContentEntriesToActionsConverterService {
             metadata: contentEntry.metadata,
             data: contentEntry.data,
           }),
-          `${ENTRY_FOLDER_NAME}/${contentEntry.id}${ENTRY_EXTENSION}`,
+          `${pathEntryFolder}/${contentEntry.id}${ENTRY_EXTENSION}`,
           parentSha,
         ),
       )

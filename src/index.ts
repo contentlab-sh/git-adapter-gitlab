@@ -6,6 +6,8 @@ export { GitLabAdapterService } from './git-lab-adapter.service'
 export interface GitLabRepositoryOptions extends GitRepositoryOptions {
   projectPath: string
   token: string
+  pathSchemaFile?: string
+  pathEntryFolder?: string
 }
 
 export function createAdapter(): GitAdapter {

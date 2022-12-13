@@ -10,10 +10,12 @@ This repository holds code that implements access to Git repositories hosted on 
 Instantiate the adapter with `createAdapter()` and then call `setRepositoryOptions()` with `GitLabRepositoryOptions` on
 the instance. These options are as follows:
 
-| Option name   | Description                                     |
-|---------------|-------------------------------------------------|
-| `projectPath` | GitLab (SaaS) project path, e.g. `myorg/myrepo` |
-| `token`       | GitLab (SaaS) personal access token             |
+| Option name       | Required | Default value           | Description                                     |
+|-------------------|----------|-------------------------|-------------------------------------------------|
+| `projectPath`     | True     |                         | GitLab (SaaS) project path, e.g. `myorg/myrepo` |
+| `token`           | True     |                         | GitLab (SaaS) personal access token             |
+| `pathSchemaFile`  | False    | `schema/schema.graphql` | Path to schema file in repository               |
+| `pathEntryFolder` | False    | `entries/`              | Path to folder for content entries              |
 
 # License
 
